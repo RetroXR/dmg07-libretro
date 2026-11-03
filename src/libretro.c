@@ -23,6 +23,7 @@
  */
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <libretro.h>
@@ -113,6 +114,10 @@ static uint32_t framebuffer[DMG07_PORTS];
 static uint8_t last_connected = 0xFF;
 static uint8_t last_phase = 0xFF;
 static unsigned state_logs[DMG07_PORTS];
+static unsigned relay_logs;
+static unsigned trace_slots;
+static uint32_t trace_from;
+static uint8_t timing;
 
 static void log_msg(enum retro_log_level level, const char *fmt, ...)
 {
@@ -287,6 +292,7 @@ static void power(int on)
       return;
    st.powered = (uint32_t)on;
    dmg07_reset(&st.adapter);
+   st.adapter.timing = timing;
    st.next_slot = st.now;
    st.packet_start = st.now;
    log_msg(RETRO_LOG_WARN, "%s\n", on ? "powered by player 1's cable: pinging"
@@ -321,7 +327,36 @@ static void slot(void)
       port_send(p, st.now + LINK_HORIZON, LS_CLOCK, dmg07_out(&st.adapter, p), CLOCK_FLAGS);
    }
 
+   /* DMG07_TRACE=1: every slot's exchange for the first transmission packets. */
+   if (trace_slots > 0 && st.adapter.packets >= trace_from)
+   {
+      trace_slots--;
+      log_msg(RETRO_LOG_WARN, "slot %u.%u out %02X/%02X/%02X/%02X in %02X%c %02X%c %02X%c %02X%c\n",
+         (unsigned)st.adapter.packets, st.adapter.index,
+         dmg07_out(&st.adapter, 0), dmg07_out(&st.adapter, 1), dmg07_out(&st.adapter, 2), dmg07_out(&st.adapter, 3),
+         in[0], (answered & 1) ? ' ' : '!', in[1], (answered & 2) ? ' ' : '!',
+         in[2], (answered & 4) ? ' ' : '!', in[3], (answered & 8) ? ' ' : '!');
+   }
+
    ended = dmg07_in(&st.adapter, in, answered);
+
+   /* What each transmission packet relays, when it changes: the log is where a
+    * player's byte reaching everyone else can be read. Rate-limited. */
+   if (ended && st.adapter.phase == DMG07_TRANSMIT && relay_logs < 400)
+   {
+      static uint8_t last_buf[DMG07_MAX_PACKET];
+      unsigned len = dmg07_packet_len(&st.adapter);
+      if (memcmp(last_buf, st.adapter.buffer, len) != 0)
+      {
+         char hex[DMG07_MAX_PACKET * 3 + 1];
+         unsigned i;
+         for (i = 0; i < len; i++)
+            snprintf(hex + i * 3, 4, "%02X ", st.adapter.buffer[i]);
+         memcpy(last_buf, st.adapter.buffer, len);
+         relay_logs++;
+         log_msg(RETRO_LOG_WARN, "packet %u relays %s\n", (unsigned)st.adapter.packets, hex);
+      }
+   }
    st.next_slot = ended ? st.packet_start + packet_len : st.now + byte_gap;
 
    if (st.adapter.connected != last_connected || st.adapter.phase != last_phase)
@@ -502,6 +537,18 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
    }
    memset(&st, 0, sizeof(st));
    dmg07_reset(&st.adapter);
+   {
+      const char *t = getenv("DMG07_TRACE");
+      /* DMG07_TRACE=1 traces from the start; =N from packet N. */
+      trace_slots = (t && t[0] && t[0] != '0') ? 2400 : 0;
+      trace_from = (t && atoi(t) > 1) ? (uint32_t)atoi(t) : 0;
+      t = getenv("DMG07_TIMING");
+      timing = (t && strcmp(t, "gbe") == 0) ? DMG07_TIMING_GBE
+             : (t && strcmp(t, "bytes") == 0) ? DMG07_TIMING_BYTES : DMG07_TIMING_PANDOCS;
+      if (timing != DMG07_TIMING_PANDOCS)
+         log_msg(RETRO_LOG_WARN, "packet timing: GBE+'s\n");
+   }
+   st.adapter.timing = timing;
    last_connected = 0xFF;
    last_phase = 0xFF;
    attach_all();

@@ -175,9 +175,13 @@ int dmg07_in(dmg07 *a, const uint8_t in[DMG07_PORTS], unsigned answered)
             s->ff_run = 0;
          if (!(answered & (1u << p)))
             continue;
-         /* Each player's first SIZE bytes of a packet are its data. */
-         if (a->index < a->size)
-            a->next[p * a->size + a->index] = in[p];
+         /* Each player's data is what it sends in slots 1 to SIZE: a Game Boy
+          * loads a byte after receiving the one before, so its first byte of a
+          * packet goes out one slot in. Pan Docs' prose says "the first few
+          * serial transfers"; GBE+ (shonumi's emulator, the source of that
+          * research) takes slots 1..SIZE, and so does Wave Race. */
+         if (a->index >= 1 && a->index <= a->size)
+            a->next[p * a->size + (a->index - 1)] = in[p];
          if (in[p] == RESTART && s->ff_run == a->index)
          {
             s->ff_run++;
@@ -231,8 +235,18 @@ int dmg07_in(dmg07 *a, const uint8_t in[DMG07_PORTS], unsigned answered)
    return 1;
 }
 
+/* GBE+'s: 8 bits of (6 x RATE + 512) cycles, 2048 before a RATE is set; link
+ * ticks are two a cycle. */
+static uint64_t gbe_byte(const dmg07 *a)
+{
+   uint64_t per_bit = (a->phase == DMG07_PING && a->packets == 0) ? 2048u : 6u * a->rate + 512u;
+   return per_bit * 8u * 2u;
+}
+
 uint64_t dmg07_byte_ticks(const dmg07 *a)
 {
+   if (a->timing == DMG07_TIMING_GBE)
+      return gbe_byte(a);
    /* Ping (and the $CC packet, which ends ping timing): 128 us a byte and 1.42 ms
     * between bytes. Transmission: 0.887 ms + (RATE >> 4) x 0.106 ms between. */
    if (a->phase == DMG07_PING || a->phase == DMG07_TO_TRANSMIT)
@@ -243,12 +257,17 @@ uint64_t dmg07_byte_ticks(const dmg07 *a)
 uint64_t dmg07_packet_ticks(const dmg07 *a)
 {
    uint64_t span;
+   if (a->timing == DMG07_TIMING_GBE)
+      return gbe_byte(a) * dmg07_packet_len(a);
    if (a->phase == DMG07_PING || a->phase == DMG07_TO_TRANSMIT)
       /* 4.71 ms of bytes, then 12.2 ms + (RATE & 15) ms. */
       return ms(4.71 + 12.2 + (double)(a->rate & 0x0F));
    /* The larger of (RATE & 15) ms + 17 ms and the bytes plus an add-on Pan Docs
     * measured at 0.36-2.15 ms without a formula; 1 ms is chosen here. */
    span = (uint64_t)dmg07_packet_len(a) * dmg07_byte_ticks(a) + ms(1.0);
+   /* A test: no 17 ms floor in transmission, the bytes alone. */
+   if (a->timing == DMG07_TIMING_BYTES)
+      return span;
    {
       uint64_t floor = ms(17.0 + (double)(a->rate & 0x0F));
       return span > floor ? span : floor;

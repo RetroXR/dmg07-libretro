@@ -70,7 +70,13 @@ typedef struct dmg07
    uint8_t next[DMG07_MAX_PACKET];     /* collected for the next */
    dmg07_port port[DMG07_PORTS];
    uint32_t packets;           /* packets sent, for log lines */
+   uint8_t timing;             /* DMG07_TIMING_PANDOCS or DMG07_TIMING_GBE */
+   uint8_t pad2[3];
 } dmg07;
+
+/* Pan Docs' measured packet timing, or GBE+'s: every byte 8 x (6 x RATE + 512)
+ * Game Boy cycles after the last, packets back to back. */
+enum { DMG07_TIMING_PANDOCS = 0, DMG07_TIMING_GBE = 1, DMG07_TIMING_BYTES = 2 };
 
 void dmg07_reset(dmg07 *a);
 

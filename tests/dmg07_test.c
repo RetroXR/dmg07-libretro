@@ -48,8 +48,9 @@ static void gb_receive(gb *g, uint8_t b, unsigned slot_index, unsigned packet_le
       if (g->left && --g->left == 0) g->mode = 2;
       break;
    default:
-      /* Its data byte goes out at slot 0 of each packet. */
-      g->sb = ((slot_index + 1) % packet_len == 0) ? g->data : 0x00;
+      /* Its data byte is loaded once slot 0 is received, so it goes out at
+       * slot 1. */
+      g->sb = (slot_index == 0) ? g->data : 0x00;
       break;
    }
 }
