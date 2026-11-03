@@ -21,3 +21,19 @@ ctest --test-dir build -C Release      # Godot-free protocol test
 ## License
 
 MIT.
+
+## Status (2026-11-03)
+
+Wave Race on four gambatte Game Boys: all four players join, names and menus
+cross to every machine, and the starting grid agrees on every screen. The race
+itself does not start yet (the countdown holds at 3). Paced 59-60 fps with four
+linked; 104-114 fps unthrottled on a desktop PC.
+
+`DMG07_TRACE=1` (or `=N`, from packet N) logs every slot's exchange.
+`DMG07_TIMING=gbe|bytes` tries GBE+'s packet pacing or no 17 ms floor; both put
+Wave Race's menus out of step, so Pan Docs' pacing is the default.
+
+## Release
+
+Push a `retroxr-dmg07-libretro-vN` tag: `.github/workflows/retroxr-release.yml`
+builds Windows, Android arm64, Linux and macOS and publishes them.
