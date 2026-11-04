@@ -76,7 +76,7 @@ typedef struct dmg07
 
 /* Pan Docs' measured packet timing, or GBE+'s: every byte 8 x (6 x RATE + 512)
  * Game Boy cycles after the last, packets back to back. */
-enum { DMG07_TIMING_PANDOCS = 0, DMG07_TIMING_GBE = 1, DMG07_TIMING_BYTES = 2 };
+enum { DMG07_TIMING_PANDOCS = 0, DMG07_TIMING_GBE = 1, DMG07_TIMING_BYTES = 2, DMG07_TIMING_DCGB = 3 };
 
 void dmg07_reset(dmg07 *a);
 

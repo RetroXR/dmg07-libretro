@@ -544,7 +544,8 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
       trace_from = (t && atoi(t) > 1) ? (uint32_t)atoi(t) : 0;
       t = getenv("DMG07_TIMING");
       timing = (t && strcmp(t, "gbe") == 0) ? DMG07_TIMING_GBE
-             : (t && strcmp(t, "bytes") == 0) ? DMG07_TIMING_BYTES : DMG07_TIMING_PANDOCS;
+             : (t && strcmp(t, "bytes") == 0) ? DMG07_TIMING_BYTES
+             : (t && strcmp(t, "dcgb") == 0) ? DMG07_TIMING_DCGB : DMG07_TIMING_PANDOCS;
       if (timing != DMG07_TIMING_PANDOCS)
          log_msg(RETRO_LOG_WARN, "packet timing: GBE+'s\n");
    }

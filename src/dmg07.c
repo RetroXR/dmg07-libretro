@@ -243,10 +243,22 @@ static uint64_t gbe_byte(const dmg07 *a)
    return per_bit * 8u * 2u;
 }
 
+/* DoubleCherryGB's transmission pacing (its emulator was tested against the
+ * adapter's games): every byte 6144 x (m + 1) cycles after the last, where m is
+ * RATE's top two bits (bit 7 its low bit, bit 6 its high), and no gap at a
+ * packet's end. Ping is Pan Docs'. */
+static uint64_t dcgb_byte(const dmg07 *a)
+{
+   unsigned m = ((a->rate & 0x80u) >> 7) | ((a->rate & 0x40u) >> 5);
+   return (uint64_t)6144u * (m + 1u) * 2u;
+}
+
 uint64_t dmg07_byte_ticks(const dmg07 *a)
 {
    if (a->timing == DMG07_TIMING_GBE)
       return gbe_byte(a);
+   if (a->timing == DMG07_TIMING_DCGB && (a->phase == DMG07_TRANSMIT || a->phase == DMG07_TO_PING))
+      return dcgb_byte(a);
    /* Ping (and the $CC packet, which ends ping timing): 128 us a byte and 1.42 ms
     * between bytes. Transmission: 0.887 ms + (RATE >> 4) x 0.106 ms between. */
    if (a->phase == DMG07_PING || a->phase == DMG07_TO_TRANSMIT)
@@ -259,6 +271,8 @@ uint64_t dmg07_packet_ticks(const dmg07 *a)
    uint64_t span;
    if (a->timing == DMG07_TIMING_GBE)
       return gbe_byte(a) * dmg07_packet_len(a);
+   if (a->timing == DMG07_TIMING_DCGB && (a->phase == DMG07_TRANSMIT || a->phase == DMG07_TO_PING))
+      return dcgb_byte(a) * dmg07_packet_len(a);
    if (a->phase == DMG07_PING || a->phase == DMG07_TO_TRANSMIT)
       /* 4.71 ms of bytes, then 12.2 ms + (RATE & 15) ms. */
       return ms(4.71 + 12.2 + (double)(a->rate & 0x0F));
