@@ -74,8 +74,15 @@ typedef struct dmg07
    uint8_t pad2[3];
 } dmg07;
 
-/* Pan Docs' measured packet timing, or GBE+'s: every byte 8 x (6 x RATE + 512)
- * Game Boy cycles after the last, packets back to back. */
+/* Packet pacing. Pan Docs' (the default) is the only one under which Wave Race's
+ * four menus stay in step. The others are kept to test against, set by
+ * DMG07_TIMING in the environment:
+ *   gbe    GBE+'s: every byte 8 x (6 x RATE + 512) cycles after the last,
+ *          packets back to back
+ *   bytes  Pan Docs' bytes with no 17 ms floor on a transmission packet
+ *   dcgb   DoubleCherryGB's transmission: 6144 x (m + 1) cycles a byte (m from
+ *          RATE's top two bits), packets back to back
+ * All three put Wave Race's menus out of step (2026-11-04). */
 enum { DMG07_TIMING_PANDOCS = 0, DMG07_TIMING_GBE = 1, DMG07_TIMING_BYTES = 2, DMG07_TIMING_DCGB = 3 };
 
 void dmg07_reset(dmg07 *a);

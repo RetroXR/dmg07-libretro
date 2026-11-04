@@ -547,7 +547,7 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
              : (t && strcmp(t, "bytes") == 0) ? DMG07_TIMING_BYTES
              : (t && strcmp(t, "dcgb") == 0) ? DMG07_TIMING_DCGB : DMG07_TIMING_PANDOCS;
       if (timing != DMG07_TIMING_PANDOCS)
-         log_msg(RETRO_LOG_WARN, "packet timing: GBE+'s\n");
+         log_msg(RETRO_LOG_WARN, "packet timing: %s (DMG07_TIMING)\n", t);
    }
    st.adapter.timing = timing;
    last_connected = 0xFF;
