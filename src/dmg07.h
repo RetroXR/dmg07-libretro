@@ -74,16 +74,16 @@ typedef struct dmg07
    uint8_t pad2[3];
 } dmg07;
 
-/* Packet pacing. Pan Docs' is the default, and under it Wave Race's four players
- * race. The others are kept to test against, set by DMG07_TIMING in the
- * environment:
- *   gbe    GBE+'s: every byte 8 x (6 x RATE + 512) cycles after the last,
- *          packets back to back
- *   bytes  Pan Docs' bytes with no 17 ms floor on a transmission packet
- *   dcgb   DoubleCherryGB's transmission: 6144 x (m + 1) cycles a byte (m from
- *          RATE's top two bits), packets back to back
- * None is shown better or worse: what once read as their putting the menus out of
- * step was a probe saving one stale screenshot over and over (2026-11-04). */
+/* Packet pacing, set by DMG07_TIMING in the environment. The core runs GBE+'s
+ * (shonumi's emulator, where the adapter's research was done): every byte
+ * 8 x (6 x RATE + 512) cycles after the last, packets back to back. Under it Wave
+ * Race's four players race on gambatte AND mGBA; under Pan Docs' gambatte raced
+ * and mGBA froze a few frames after GO (2026-11-04). dmg07_reset leaves Pan
+ * Docs' (0), which the unit tests check; the others are kept to test against:
+ *   pandocs  Pan Docs' measured ping and transmission timing
+ *   bytes    Pan Docs' bytes with no 17 ms floor on a transmission packet
+ *   dcgb     DoubleCherryGB's transmission: 6144 x (m + 1) cycles a byte (m from
+ *            RATE's top two bits), packets back to back */
 enum { DMG07_TIMING_PANDOCS = 0, DMG07_TIMING_GBE = 1, DMG07_TIMING_BYTES = 2, DMG07_TIMING_DCGB = 3 };
 
 void dmg07_reset(dmg07 *a);
