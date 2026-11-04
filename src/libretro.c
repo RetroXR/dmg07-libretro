@@ -75,7 +75,8 @@ typedef struct port_state
    uint32_t pending_count;
    uint8_t peer_sb;
    uint8_t peer_armed;
-   uint8_t pad[2];
+   uint8_t ever_armed;      /* this Game Boy has been armed since it was cabled */
+   uint8_t pad;
    pending_msg pending[LINK_PENDING_MAX];
 } port_state;
 
@@ -118,6 +119,15 @@ static unsigned relay_logs;
 static unsigned trace_slots;
 static uint32_t trace_from;
 static uint8_t timing;
+/* The clock's flags: CLOCK_FLAGS, or none with DMG07_CLOCK=normal (a test). */
+static uint8_t clock_flags = CLOCK_FLAGS;
+/* DMG07_WAIT=1 (a test): hold a slot while a Game Boy that has been taking part
+ * is not armed, as GBE+ and DoubleCherryGB effectively do (both only complete a
+ * byte once every Game Boy is ready), for up to WAIT_MAX ticks. */
+static int wait_ready;
+static unsigned wait_logs;
+#define WAIT_STEP ((uint64_t)256)
+#define WAIT_MAX FRAME_TICKS
 
 static void log_msg(enum retro_log_level level, const char *fmt, ...)
 {
@@ -245,6 +255,8 @@ static void port_apply(unsigned p, uint64_t tick)
       }
       s->peer_sb = s->pending[0].sb;
       s->peer_armed = armed;
+      if (armed)
+         s->ever_armed = 1;
       memmove(&s->pending[0], &s->pending[1], sizeof(pending_msg) * (s->pending_count - 1));
       s->pending_count--;
    }
@@ -324,7 +336,7 @@ static void slot(void)
          in[p] = st.port[p].peer_sb;
          answered |= 1u << p;
       }
-      port_send(p, st.now + LINK_HORIZON, LS_CLOCK, dmg07_out(&st.adapter, p), CLOCK_FLAGS);
+      port_send(p, st.now + LINK_HORIZON, LS_CLOCK, dmg07_out(&st.adapter, p), clock_flags);
    }
 
    /* DMG07_TRACE=1: every slot's exchange for the first transmission packets. */
@@ -371,6 +383,39 @@ static void slot(void)
    }
 }
 
+/* Whether every Game Boy taking part is armed, so a slot may clock (DMG07_WAIT).
+ * A slot held past WAIT_MAX goes ahead anyway: a Game Boy that has stopped
+ * listening must not hold the other three for ever. */
+static int all_ready(void)
+{
+   unsigned p;
+   if (!wait_ready)
+      return 1;
+   for (p = 0; p < DMG07_PORTS; p++)
+   {
+      if (!cabled(p) || !st.port[p].ever_armed || st.port[p].peer_armed)
+         continue;
+      if (st.now - st.next_slot >= WAIT_MAX)
+      {
+         if (wait_logs < 20)
+         {
+            wait_logs++;
+            log_msg(RETRO_LOG_WARN, "player %u not armed for a frame: clocking anyway\n", p + 1);
+         }
+         return 1;
+      }
+      return 0;
+   }
+   if (st.now > st.next_slot + WAIT_STEP && wait_logs < 20)
+   {
+      wait_logs++;
+      log_msg(RETRO_LOG_WARN, "a slot waited %llu ticks for every Game Boy to be armed\n",
+         (unsigned long long)(st.now - st.next_slot));
+   }
+   return 1;
+}
+
+
 static void run_frame(void)
 {
    uint64_t end = st.now + FRAME_TICKS;
@@ -392,7 +437,11 @@ static void run_frame(void)
          port_refresh(p);
       power(cabled(0));
 
-      if (st.powered && st.next_slot < want)
+      /* A slot that is due but held: look again shortly rather than at once. */
+      int held = st.powered && st.now >= st.next_slot && !all_ready();
+      if (held)
+         want = st.now + WAIT_STEP;
+      else if (st.powered && st.next_slot < want)
          want = st.next_slot;
       if (want > end)
          want = end;
@@ -420,7 +469,7 @@ static void run_frame(void)
          if (cabled(p))
             port_apply(p, st.now);
 
-      if (st.powered && st.now >= st.next_slot)
+      if (st.powered && st.now >= st.next_slot && all_ready())
          slot();
       else if (grant <= st.now && want > st.now)
          continue;
@@ -548,6 +597,14 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
              : (t && strcmp(t, "dcgb") == 0) ? DMG07_TIMING_DCGB : DMG07_TIMING_PANDOCS;
       if (timing != DMG07_TIMING_PANDOCS)
          log_msg(RETRO_LOG_WARN, "packet timing: %s (DMG07_TIMING)\n", t);
+      t = getenv("DMG07_CLOCK");
+      clock_flags = (t && strcmp(t, "normal") == 0) ? 0 : CLOCK_FLAGS;
+      t = getenv("DMG07_WAIT");
+      wait_ready = t && t[0] && t[0] != '0';
+      if (wait_ready)
+         log_msg(RETRO_LOG_WARN, "slots wait for every Game Boy taking part to be armed (DMG07_WAIT)\n");
+      if (!clock_flags)
+         log_msg(RETRO_LOG_WARN, "clocking at the normal rate (DMG07_CLOCK)\n");
    }
    st.adapter.timing = timing;
    last_connected = 0xFF;

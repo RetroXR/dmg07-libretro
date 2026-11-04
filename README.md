@@ -22,16 +22,21 @@ ctest --test-dir build -C Release      # Godot-free protocol test
 
 MIT.
 
-## Status (2026-11-03)
+## Status (2026-11-04)
 
 Wave Race on four gambatte Game Boys: all four players join, names and menus
-cross to every machine, and the starting grid agrees on every screen. The race
-itself does not start yet (the countdown holds at 3). Paced 59-60 fps with four
-linked; 104-114 fps unthrottled on a desktop PC.
+cross to every machine, the starting grid agrees on every screen, and the race
+runs -- countdown, GO, every rider moving and each seen on the others' screens.
+Paced 59-60 fps with four linked; 104-114 fps unthrottled on a desktop PC.
 
-`DMG07_TRACE=1` (or `=N`, from packet N) logs every slot's exchange.
-`DMG07_TIMING=gbe|bytes` tries GBE+'s packet pacing or no 17 ms floor; both put
-Wave Race's menus out of step, so Pan Docs' pacing is the default.
+Test switches, all off by default:
+
+- `DMG07_TRACE=1` (or `=N`, from packet N) logs every slot's exchange.
+- `DMG07_TIMING=gbe|bytes|dcgb` tries GBE+'s pacing, Pan Docs' with no 17 ms
+  floor, or DoubleCherryGB's transmission pacing. Pan Docs' is the default.
+- `DMG07_WAIT=1` holds a slot while a Game Boy taking part is not armed (never
+  triggered with Wave Race: every Game Boy was armed at every slot).
+- `DMG07_CLOCK=normal` clocks at the normal rate instead of FAST.
 
 ## Release
 
