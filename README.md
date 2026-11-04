@@ -32,9 +32,11 @@ Paced 59-60 fps with four linked; 104-114 fps unthrottled on a desktop PC.
 Test switches, all off by default:
 
 - `DMG07_TRACE=1` (or `=N`, from packet N) logs every slot's exchange.
-- `DMG07_TIMING=pandocs|bytes|dcgb` tries Pan Docs' pacing, Pan Docs' with no 17 ms
-  floor, or DoubleCherryGB's transmission pacing. GBE+'s is the default: under
-  Pan Docs' the race froze on mGBA (gambatte raced), under GBE+'s both race.
+- `DMG07_TIMING=pandocs|gbe|bytes|dcgb` tries Pan Docs' pacing, GBE+'s, Pan Docs'
+  with no 17 ms floor, or DoubleCherryGB's transmission pacing. The default is
+  `mixed`, Pan Docs' ping and GBE+'s transmission: on mGBA, Yoshi's Cookie answers
+  the ping only at Pan Docs' spacing and Wave Race races only with GBE+'s
+  transmission (src/dmg07.h).
 - `DMG07_WAIT=1` holds a slot while a Game Boy taking part is not armed (never
   triggered with Wave Race: every Game Boy was armed at every slot).
 - `DMG07_CLOCK=normal` clocks at the normal rate instead of FAST.

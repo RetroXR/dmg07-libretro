@@ -253,9 +253,18 @@ static uint64_t dcgb_byte(const dmg07 *a)
    return (uint64_t)6144u * (m + 1u) * 2u;
 }
 
-uint64_t dmg07_byte_ticks(const dmg07 *a)
+/* Whether this packet is paced as GBE+ paces it: always under `gbe`, and the
+ * transmission (not the ping) under `mixed`. */
+static int gbe_paced(const dmg07 *a)
 {
    if (a->timing == DMG07_TIMING_GBE)
+      return 1;
+   return a->timing == DMG07_TIMING_MIXED && (a->phase == DMG07_TRANSMIT || a->phase == DMG07_TO_PING);
+}
+
+uint64_t dmg07_byte_ticks(const dmg07 *a)
+{
+   if (gbe_paced(a))
       return gbe_byte(a);
    if (a->timing == DMG07_TIMING_DCGB && (a->phase == DMG07_TRANSMIT || a->phase == DMG07_TO_PING))
       return dcgb_byte(a);
@@ -269,7 +278,7 @@ uint64_t dmg07_byte_ticks(const dmg07 *a)
 uint64_t dmg07_packet_ticks(const dmg07 *a)
 {
    uint64_t span;
-   if (a->timing == DMG07_TIMING_GBE)
+   if (gbe_paced(a))
       return gbe_byte(a) * dmg07_packet_len(a);
    if (a->timing == DMG07_TIMING_DCGB && (a->phase == DMG07_TRANSMIT || a->phase == DMG07_TO_PING))
       return dcgb_byte(a) * dmg07_packet_len(a);

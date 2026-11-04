@@ -170,6 +170,19 @@ int main(void)
       "timing/a power-up ping packet is ~17 ms (%llu ticks)", (unsigned long long)dmg07_packet_ticks(&a));
    CHECK(dmg07_byte_ticks(&a) > 12900 && dmg07_byte_ticks(&a) < 13100, "timing/1.548 ms a ping byte");
 
+   /* The core's default: Pan Docs' ping, GBE+'s transmission (8 x (6 x RATE +
+    * 512) cycles a byte, two ticks a cycle, packets back to back). */
+   dmg07_reset(&a);
+   a.timing = DMG07_TIMING_MIXED;
+   CHECK(dmg07_byte_ticks(&a) > 12900 && dmg07_byte_ticks(&a) < 13100, "timing/mixed: a ping byte is Pan Docs'");
+   CHECK(dmg07_packet_ticks(&a) > 140000 && dmg07_packet_ticks(&a) < 143000, "timing/mixed: and so is a ping packet");
+   a.phase = DMG07_TRANSMIT;
+   a.rate = 0xF3;
+   a.size = 1;
+   CHECK(dmg07_byte_ticks(&a) == 8u * (6u * 0xF3 + 512u) * 2u, "timing/mixed: a transmission byte is GBE+'s (%llu)",
+      (unsigned long long)dmg07_byte_ticks(&a));
+   CHECK(dmg07_packet_ticks(&a) == 4u * dmg07_byte_ticks(&a), "timing/mixed: packets back to back");
+
    printf("%s: %d checks, %d failed\n", failures ? "FAIL" : "PASS", checks, failures);
    return failures ? 1 : 0;
 }

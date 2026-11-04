@@ -74,17 +74,25 @@ typedef struct dmg07
    uint8_t pad2[3];
 } dmg07;
 
-/* Packet pacing, set by DMG07_TIMING in the environment. The core runs GBE+'s
- * (shonumi's emulator, where the adapter's research was done): every byte
- * 8 x (6 x RATE + 512) cycles after the last, packets back to back. Under it Wave
- * Race's four players race on gambatte AND mGBA; under Pan Docs' gambatte raced
- * and mGBA froze a few frames after GO (2026-11-04). dmg07_reset leaves Pan
- * Docs' (0), which the unit tests check; the others are kept to test against:
+/* Packet pacing, set by DMG07_TIMING in the environment. The core runs `mixed`:
+ * Pan Docs' measured ping (128 us a byte, 1.42 ms between, a 17 ms packet), then
+ * GBE+'s transmission (shonumi's emulator: every byte 8 x (6 x RATE + 512) cycles
+ * after the last, packets back to back). On mGBA each half is what one game
+ * needs (2026-11-04, dmg07_probe):
+ *   - Wave Race races on both cores with GBE+'s transmission; with Pan Docs' it
+ *     froze on mGBA a few frames after GO.
+ *   - Yoshi's Cookie answers the ping on mGBA only with Pan Docs' ping: with
+ *     GBE+'s (bytes 1 ms apart, back to back) every Game Boy took the adapter for
+ *     a cable partner and played two-player. gambatte takes either.
+ * dmg07_reset leaves Pan Docs' (0), which the unit tests check; the others are
+ * kept to test against:
  *   pandocs  Pan Docs' measured ping and transmission timing
+ *   gbe      GBE+'s, ping included
  *   bytes    Pan Docs' bytes with no 17 ms floor on a transmission packet
  *   dcgb     DoubleCherryGB's transmission: 6144 x (m + 1) cycles a byte (m from
- *            RATE's top two bits), packets back to back */
-enum { DMG07_TIMING_PANDOCS = 0, DMG07_TIMING_GBE = 1, DMG07_TIMING_BYTES = 2, DMG07_TIMING_DCGB = 3 };
+ *            RATE's top two bits), packets back to back; Pan Docs' ping */
+enum { DMG07_TIMING_PANDOCS = 0, DMG07_TIMING_GBE = 1, DMG07_TIMING_BYTES = 2, DMG07_TIMING_DCGB = 3,
+       DMG07_TIMING_MIXED = 4 };
 
 void dmg07_reset(dmg07 *a);
 

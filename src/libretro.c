@@ -592,16 +592,15 @@ RETRO_API bool retro_load_game(const struct retro_game_info *game)
       trace_slots = (t && t[0] && t[0] != '0') ? 2400 : 0;
       trace_from = (t && atoi(t) > 1) ? (uint32_t)atoi(t) : 0;
       t = getenv("DMG07_TIMING");
-      /* GBE+'s pacing by default: under Pan Docs' the race in Wave Race froze
-       * on mGBA a few frames after GO (its HUD gone, player 1 stuck on the line
-       * with A held) while gambatte raced, and under GBE+'s both race
-       * (2026-11-04, dmg07_probe). */
+      /* Pan Docs' ping and GBE+'s transmission by default (dmg07.h says which
+       * game needed which half, on mGBA). */
       timing = (t && strcmp(t, "pandocs") == 0) ? DMG07_TIMING_PANDOCS
+             : (t && strcmp(t, "gbe") == 0) ? DMG07_TIMING_GBE
              : (t && strcmp(t, "bytes") == 0) ? DMG07_TIMING_BYTES
-             : (t && strcmp(t, "dcgb") == 0) ? DMG07_TIMING_DCGB : DMG07_TIMING_GBE;
+             : (t && strcmp(t, "dcgb") == 0) ? DMG07_TIMING_DCGB : DMG07_TIMING_MIXED;
       log_msg(RETRO_LOG_WARN, "packet timing: %s\n",
-         timing == DMG07_TIMING_GBE ? "gbe" : timing == DMG07_TIMING_PANDOCS ? "pandocs"
-         : timing == DMG07_TIMING_BYTES ? "bytes" : "dcgb");
+         timing == DMG07_TIMING_MIXED ? "mixed" : timing == DMG07_TIMING_GBE ? "gbe"
+         : timing == DMG07_TIMING_PANDOCS ? "pandocs" : timing == DMG07_TIMING_BYTES ? "bytes" : "dcgb");
       t = getenv("DMG07_CLOCK");
       clock_flags = (t && strcmp(t, "normal") == 0) ? 0 : CLOCK_FLAGS;
       t = getenv("DMG07_WAIT");
